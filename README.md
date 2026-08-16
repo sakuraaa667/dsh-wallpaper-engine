@@ -4,6 +4,10 @@
 的背景（动态壁纸视频也支持）。Use wallpapers downloaded by Wallpaper Engine as
 the DeepSeek Harness web background.
 
+## 效果预览
+
+![DeepSeek Harness 壁纸背景效果](assets/screenshot.jpg)
+
 ## 功能
 
 - 自动发现 Wallpaper Engine 已下载内容：
