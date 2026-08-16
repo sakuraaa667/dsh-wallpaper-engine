@@ -1,0 +1,41 @@
+{
+  "name": "dsh-wallpaper-engine",
+  "version": "1.0.0",
+  "description": "Use wallpapers downloaded in Wallpaper Engine as the DeepSeek Harness web background. 将 Wallpaper Engine 中已下载的壁纸用作 DeepSeek Harness 的背景。",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client/client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "client",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "wallpaper-engine",
+    "background",
+    "theme"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  }
+}

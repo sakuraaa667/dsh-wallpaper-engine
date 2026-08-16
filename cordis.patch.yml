@@ -1,0 +1,5 @@
+# dsh-wallpaper-engine bundle layer: applied automatically when the package is
+# installed as a profile bundle (package.json declares dsh.bundle.patch).
+- insert:
+    - id: dsh-wallpaper-engine
+      name: dsh-wallpaper-engine
