@@ -137,9 +137,20 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       return;
     }
     // Static image: prefer the highest-resolution artwork when one exists
-    // (wp.file), falling back to the small preview image.
+    // (wp.file — a standalone image or an extracted scene-package texture),
+    // falling back to the small preview image.
     const src = wp.file || wp.preview;
     if (!src) return;
+    // If the preferred source fails (e.g. a package with no usable texture),
+    // fall back to the preview image.
+    const fallbackToPreview = (event) => {
+      if (!wp.preview || event.target.src === wp.preview) return;
+      const img = document.createElement("img");
+      img.className = "dsh-wp-main";
+      img.src = wp.preview;
+      img.alt = "";
+      layer.replaceChildren(img);
+    };
     if (fit === "contain") {
       const backdrop = document.createElement("img");
       backdrop.className = "dsh-wp-backdrop";
@@ -149,12 +160,14 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       main.className = "dsh-wp-main";
       main.src = src;
       main.alt = "";
+      main.addEventListener("error", fallbackToPreview);
       layer.append(backdrop, main);
     } else {
       const img = document.createElement("img");
       img.className = "dsh-wp-main";
       img.src = src;
       img.alt = "";
+      img.addEventListener("error", fallbackToPreview);
       layer.appendChild(img);
     }
   }
