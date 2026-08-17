@@ -15,8 +15,8 @@ the DeepSeek Harness web background.
   - 本地项目（`projects/myprojects`、`projects/defaultprojects`）。
 - 在 **设置 → 壁纸 Wallpaper Engine** 中浏览缩略图、搜索、一键使用；
 - **自动同步**：打开壁纸页时每 30 秒静默重扫磁盘，Wallpaper Engine 里新下载的壁纸会自动出现（也可点「刷新」立即更新）；
-- 视频壁纸以 `<video>` 方式播放（`muted + loop`），静态壁纸显示图片；
-- 「面板暗化」与「背景压暗」两个滑杆控制可读性；
+- 视频壁纸以 `<video>` 方式播放（`muted + loop`）；图片壁纸优先使用目录内**最高分辨率原图**（而非小尺寸预览图），并支持「铺满 / 完整显示」两种适配模式（完整显示带毛玻璃背景填充）；
+- 「面板暗化（0–100%）」与「背景压暗（0–50%）」两个滑杆控制可读性；
 - 选择会持久化到 `$DSH_HOME/dsh-wallpaper.json`，重启 / 刷新后自动恢复。
 
 ## 安装

@@ -32,7 +32,7 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
   let layerEl = null;
   let styleTag = null;
   let tokenDisposer = null;
-  let current = { id: null, dim: 0.78, overlay: 0.25 };
+  let current = { id: null, dim: 0.78, overlay: 0.25, fit: "cover" };
 
   function clamp(value, lo, hi) {
     return Math.min(hi, Math.max(lo, value));
@@ -43,18 +43,21 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
   }
 
   function tokenOverrides(dim) {
-    const d = clamp(Number(dim) || 0.78, 0.4, 0.95);
+    // dim is a 0..1 fraction (the settings slider shows 0..100).
+    const d = clamp(Number(dim) || 0.78, 0, 1);
     // Scheme-aware surfaces: keep the active palette's lightness so the app's
     // own text colors stay readable (dark text on translucent white in light
     // mode, white text on translucent dark in dark mode). A bare string value
     // would throw in the theme service, so both palettes always get strings.
+    // Light mode keeps a small readability floor (12%) even at dim 0.
     const pair = (light, dark) => ({ light, dark });
+    const l = (a) => Math.min(1, Math.max(a, 0.12));
     return {
-      "--dsw-alias-bg-base": pair(rgba(255, 255, 255, Math.min(d + 0.12, 1)), rgba(21, 21, 23, d)),
-      "--dsw-alias-bg-layer-1": pair(rgba(255, 255, 255, Math.min(d + 0.18, 1)), rgba(15, 17, 23, Math.min(d + 0.06, 1))),
-      "--dsw-alias-bg-layer-2": pair(rgba(255, 255, 255, Math.min(d + 0.22, 1)), rgba(19, 21, 28, Math.min(d + 0.1, 1))),
-      "--dsw-specific-sidebar-fill": pair(rgba(249, 250, 251, Math.min(d + 0.12, 1)), rgba(21, 21, 23, Math.min(d + 0.06, 1))),
-      "--dsw-alias-bg-overlay": pair(rgba(233, 236, 242, Math.min(d + 0.22, 1)), rgba(13, 15, 20, Math.min(d + 0.16, 1)))
+      "--dsw-alias-bg-base": pair(rgba(255, 255, 255, l(d)), rgba(21, 21, 23, d)),
+      "--dsw-alias-bg-layer-1": pair(rgba(255, 255, 255, l(Math.min(d + 0.06, 1))), rgba(15, 17, 23, Math.min(d + 0.06, 1))),
+      "--dsw-alias-bg-layer-2": pair(rgba(255, 255, 255, l(Math.min(d + 0.1, 1))), rgba(19, 21, 28, Math.min(d + 0.1, 1))),
+      "--dsw-specific-sidebar-fill": pair(rgba(249, 250, 251, l(Math.min(d + 0.05, 1))), rgba(21, 21, 23, Math.min(d + 0.05, 1))),
+      "--dsw-alias-bg-overlay": pair(rgba(233, 236, 242, l(Math.min(d + 0.15, 1))), rgba(13, 15, 20, Math.min(d + 0.15, 1)))
     };
   }
 
@@ -64,6 +67,8 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
     styleTag.textContent = [
       "#dsh-wallpaper-layer{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:#0a0c10}",
       "#dsh-wallpaper-layer img,#dsh-wallpaper-layer video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}",
+      "#dsh-wallpaper-layer[data-fit=\"contain\"] .dsh-wp-backdrop{filter:blur(28px) brightness(.55);transform:scale(1.15)}",
+      "#dsh-wallpaper-layer[data-fit=\"contain\"] .dsh-wp-main{object-fit:contain}",
       "#dsh-wallpaper-layer::after{content:\"\";position:absolute;inset:0;background:rgba(0,0,0,var(--dsh-wp-overlay,0.25))}",
       ".dsh-wp{display:flex;flex-direction:column;gap:14px;height:100%;min-height:400px}",
       ".dsh-wp-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap}",
@@ -89,6 +94,8 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       ".dsh-wp-field{display:flex;flex-direction:column;gap:4px;min-width:200px}",
       ".dsh-wp-label{font-size:12px;color:var(--dsw-alias-label-secondary)}",
       ".dsh-wp-slider{accent-color:var(--dsw-alias-brand-primary);width:160px}",
+      ".dsh-wp-seg{display:flex;gap:6px}",
+      ".dsh-wp-seg .dsh-wp-btn{padding:5px 10px;font-size:12px}",
       ".dsh-wp-empty{color:var(--dsw-alias-label-secondary);font-size:13px;padding:24px 8px}"
     ].join("\n");
     document.head.appendChild(styleTag);
@@ -103,10 +110,11 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
     return layerEl;
   }
 
-  function setLayerContent(wp, overlay) {
+  function setLayerContent(wp, overlay, fit) {
     const layer = ensureLayer();
     layer.innerHTML = "";
     layer.style.setProperty("--dsh-wp-overlay", String(clamp(overlay, 0, 0.6)));
+    layer.setAttribute("data-fit", fit === "contain" ? "contain" : "cover");
     if (wp.hasVideo && wp.file) {
       const video = document.createElement("video");
       video.src = wp.file;
@@ -114,9 +122,11 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       video.muted = true;
       video.loop = true;
       video.playsInline = true;
+      video.className = "dsh-wp-main";
       video.addEventListener("error", () => {
         if (video.parentNode === layer && wp.preview) {
           const img = document.createElement("img");
+          img.className = "dsh-wp-main";
           img.src = wp.preview;
           img.alt = "";
           layer.replaceChildren(img);
@@ -124,9 +134,26 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       });
       layer.appendChild(video);
       void video.play().catch(() => {});
-    } else if (wp.preview) {
+      return;
+    }
+    // Static image: prefer the highest-resolution artwork when one exists
+    // (wp.file), falling back to the small preview image.
+    const src = wp.file || wp.preview;
+    if (!src) return;
+    if (fit === "contain") {
+      const backdrop = document.createElement("img");
+      backdrop.className = "dsh-wp-backdrop";
+      backdrop.src = src;
+      backdrop.alt = "";
+      const main = document.createElement("img");
+      main.className = "dsh-wp-main";
+      main.src = src;
+      main.alt = "";
+      layer.append(backdrop, main);
+    } else {
       const img = document.createElement("img");
-      img.src = wp.preview;
+      img.className = "dsh-wp-main";
+      img.src = src;
       img.alt = "";
       layer.appendChild(img);
     }
@@ -138,12 +165,13 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
     tokenDisposer = themeRef.overrideTokens(NS, tokenOverrides(dim));
   }
 
-  function applyWallpaper(wp, dim, overlay) {
+  function applyWallpaper(wp, dim, overlay, fit) {
     current.id = wp.id;
     current.dim = dim;
     current.overlay = overlay;
+    current.fit = fit === "contain" ? "contain" : "cover";
     ensureStyles();
-    setLayerContent(wp, overlay);
+    setLayerContent(wp, overlay, current.fit);
     applyTokens(dim);
   }
 
@@ -170,7 +198,7 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       await fetch(`${API}/config`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ id: current.id, dim: current.dim, overlay: current.overlay })
+        body: JSON.stringify({ id: current.id, dim: current.dim, overlay: current.overlay, fit: current.fit })
       });
     } catch (err) {
       // Non-fatal: persistence is best-effort.
@@ -186,12 +214,13 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       const cfg = body.state || {};
       if (typeof cfg.dim === "number") current.dim = cfg.dim;
       if (typeof cfg.overlay === "number") current.overlay = cfg.overlay;
+      if (cfg.fit === "contain" || cfg.fit === "cover") current.fit = cfg.fit;
       if (typeof cfg.id === "string" && cfg.id) {
         const list = await fetchList();
         const wp = list.wallpapers.find((item) => item.id === cfg.id);
         if (wp) {
           ensureStyles();
-          applyWallpaper(wp, current.dim, current.overlay);
+          applyWallpaper(wp, current.dim, current.overlay, current.fit);
         } else {
           current.id = null;
           void saveConfig();
@@ -214,6 +243,7 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
     const [activeId, setActiveId] = useState(current.id);
     const [dim, setDim] = useState(current.dim);
     const [overlay, setOverlay] = useState(current.overlay);
+    const [fit, setFit] = useState(current.fit);
     const [busyId, setBusyId] = useState(null);
     const saveTimer = useRef(null);
 
@@ -263,7 +293,7 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       setBusyId(wp.id);
       try {
         themeRef = theme;
-        applyWallpaper(wp, dim, overlay);
+        applyWallpaper(wp, dim, overlay, fit);
         setActiveId(wp.id);
         await saveConfig();
       } catch (err) {
@@ -271,7 +301,7 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       } finally {
         setBusyId(null);
       }
-    }, [theme, dim, overlay]);
+    }, [theme, dim, overlay, fit]);
 
     const clear = useCallback(() => {
       clearBackground();
@@ -280,7 +310,8 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
     }, []);
 
     const onDim = useCallback((value) => {
-      const v = Number(value);
+      // Slider shows 0..100, stored as a 0..1 fraction.
+      const v = clamp(Number(value) / 100, 0, 1);
       setDim(v);
       current.dim = v;
       if (current.id) applyTokens(v);
@@ -294,6 +325,18 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       if (layerEl) layerEl.style.setProperty("--dsh-wp-overlay", String(clamp(v, 0, 0.6)));
       scheduleSave();
     }, [scheduleSave]);
+
+    const onFit = useCallback((value) => {
+      const fitValue = value === "contain" ? "contain" : "cover";
+      setFit(fitValue);
+      current.fit = fitValue;
+      // Rebuild the background layer with the new fit (live preview).
+      if (activeId && data) {
+        const wp = data.wallpapers.find((item) => item.id === activeId);
+        if (wp) applyWallpaper(wp, dim, overlay, fitValue);
+      }
+      scheduleSave();
+    }, [activeId, data, dim, overlay, scheduleSave]);
 
     const activeWallpaper = data && activeId ? data.wallpapers.find((wp) => wp.id === activeId) : null;
     const sources = data ? data.sources : null;
@@ -332,8 +375,8 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
       es("div", { key: "dim", className: "dsh-wp-field", children: [
         e("span", { className: "dsh-wp-label", children: `面板暗化 ${Math.round(dim * 100)}%` }),
         e("input", {
-          type: "range", className: "dsh-wp-slider", min: "0.4", max: "0.95", step: "0.01",
-          value: dim, onChange: (event) => onDim(event.target.value)
+          type: "range", className: "dsh-wp-slider", min: "0", max: "100", step: "1",
+          value: Math.round(dim * 100), onChange: (event) => onDim(event.target.value)
         })
       ] }),
       es("div", { key: "overlay", className: "dsh-wp-field", children: [
@@ -342,6 +385,25 @@ window.__ModuleLoader__.load({ id: "dsh-wallpaper-engine", factory: (require) =>
           type: "range", className: "dsh-wp-slider", min: "0", max: "0.5", step: "0.01",
           value: overlay, onChange: (event) => onOverlay(event.target.value)
         })
+      ] }),
+      es("div", { key: "fit", className: "dsh-wp-field", children: [
+        e("span", { className: "dsh-wp-label", children: "图片适配" }),
+        es("div", { className: "dsh-wp-seg", children: [
+          e("button", {
+            type: "button",
+            className: "dsh-wp-btn" + (fit === "cover" ? " dsh-wp-seg-active" : ""),
+            "data-primary": fit === "cover" ? "true" : undefined,
+            onClick: () => onFit("cover"),
+            children: "铺满"
+          }),
+          e("button", {
+            type: "button",
+            className: "dsh-wp-btn" + (fit === "contain" ? " dsh-wp-seg-active" : ""),
+            "data-primary": fit === "contain" ? "true" : undefined,
+            onClick: () => onFit("contain"),
+            children: "完整显示"
+          })
+        ] })
       ] }),
       e("div", { key: "status", className: "dsh-wp-muted", children: activeWallpaper
         ? `当前背景：${activeWallpaper.title}`
