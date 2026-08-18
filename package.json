@@ -5,6 +5,14 @@
   "license": "MIT",
   "type": "module",
   "main": "lib/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sakuraaa667/dsh-wallpaper-engine.git"
+  },
+  "homepage": "https://github.com/sakuraaa667/dsh-wallpaper-engine",
   "exports": {
     ".": "./lib/index.js",
     "./client": "./client/client.js",
